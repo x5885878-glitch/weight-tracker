@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="體重追蹤">
+<meta name="theme-color" content="#0a0a0f">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>體重追蹤</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root {
+  --bg: #0a0a0f;
+  --surface: #131318;
+  --surface2: #1a1a22;
+  --border: #2a2a35;
+  --text: #e8e6f0;
+  --text2: #8886a0;
+  --accent: #7c6ef0;
+  --accent2: #a594fd;
+  --accent-glow: rgba(124,110,240,0.15);
+  --green: #4ade80;
+  --red: #f87171;
+  --radius: 16px;
+  --font: 'DM Sans', sans-serif;
+  --mono: 'Space Mono', monospace;
+  --safe-top: env(safe-area-inset-top, 20px);
+  --safe-bottom: env(safe-area-inset-bottom, 20px);
+}
+html,body{
+  height:100%;
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;user-select:none;
+}
+body{display:flex;flex-direction:column}
+
+/* ── Header ── */
+.header{
+  padding: calc(var(--safe-top) + 12px) 20px 12px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.logo{
+  font-family:var(--mono);font-weight:700;font-size:13px;
+  letter-spacing:2px;text-transform:uppercase;color:var(--accent2);
+}
+.logo span{color:var(--text2);font-weight:400}
+
+/* ── Stats Row ── */
+.stats{
+  display:flex;gap:10px;padding:4px 20px 16px;flex-shrink:0;
+}
+.stat-card{
+  flex:1;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px 16px;
+  position:relative;overflow:hidden;
+}
+.stat-card::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),transparent);opacity:0.5;
+}
+.stat-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.stat-value{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1}
+.stat-unit{font-size:12px;color:var(--text2);font-weight:400;margin-left:2px}
+.stat-delta{font-size:11px;margin-top:4px;font-family:var(--mono)}
+.stat-delta.down{color:var(--green)}
+.stat-delta.up{color:var(--red)}
+.stat-delta.neutral{color:var(--text2)}
+
+/* ── Chart Area ── */
+.chart-section{
+  flex:1;min-height:0;padding:0 20px 8px;display:flex;flex-direction:column;
+}
+.chart-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:10px;
+}
+.chart-title{font-size:13px;color:var(--text2);font-weight:500}
+.chart-range{display:flex;gap:4px}
+.range-btn{
+  background:none;border:1px solid var(--border);color:var(--text2);
+  font-family:var(--mono);font-size:11px;padding:4px 10px;
+  border-radius:20px;cursor:pointer;transition:all .2s;
+}
+.range-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.chart-container{
+  flex:1;min-height:0;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 12px 12px 0;position:relative;overflow:hidden;
+}
+canvas{width:100%!important;height:100%!important}
+
+/* ── Record List ── */
+.records-section{
+  flex-shrink:0;max-height:28vh;display:flex;flex-direction:column;
+  padding:8px 20px 0;
+}
+.records-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:8px;
+}
+.records-title{font-size:13px;color:var(--text2);font-weight:500}
+.records-list{
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  flex:1;min-height:0;
+}
+.record-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;background:var(--surface);
+  border:1px solid var(--border);border-radius:12px;
+  margin-bottom:6px;
+  animation:slideIn .3s ease;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.record-date{font-size:13px;color:var(--text2)}
+.record-weight{font-family:var(--mono);font-size:16px;font-weight:700}
+.record-delete{
+  background:none;border:none;color:var(--text2);font-size:16px;
+  cursor:pointer;padding:4px 8px;opacity:0.4;transition:opacity .2s;
+}
+.record-delete:hover,.record-delete:active{opacity:1;color:var(--red)}
+
+/* ── FAB ── */
+.fab{
+  position:fixed;bottom:calc(var(--safe-bottom) + 24px);right:20px;
+  width:56px;height:56px;border-radius:50%;
+  background:var(--accent);color:#fff;border:none;
+  font-size:28px;font-weight:300;cursor:pointer;
+  box-shadow:0 4px 24px rgba(124,110,240,0.4);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .2s,box-shadow .2s;
+  z-index:100;
+}
+.fab:active{transform:scale(0.92);box-shadow:0 2px 12px rgba(124,110,240,0.3)}
+
+/* ── Modal ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.6);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  z-index:200;display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal{
+  width:100%;max-width:420px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:24px 24px 0 0;
+  padding:20px 24px calc(var(--safe-bottom) + 24px);
+  transform:translateY(100%);transition:transform .3s cubic-bezier(0.32,0.72,0,1);
+}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-handle{
+  width:36px;height:4px;background:var(--border);border-radius:2px;
+  margin:0 auto 20px;
+}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:20px;text-align:center}
+.input-group{margin-bottom:16px}
+.input-label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;display:block}
+.input-field{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:12px;padding:14px 16px;color:var(--text);
+  font-family:var(--mono);font-size:16px;outline:none;
+  transition:border-color .2s;
+  -webkit-user-select:text;user-select:text;
+}
+.input-field:focus{border-color:var(--accent)}
+.input-field::placeholder{color:var(--text2);opacity:0.5}
+.btn-row{display:flex;gap:10px;margin-top:20px}
+.btn{
+  flex:1;padding:14px;border-radius:12px;border:none;
+  font-family:var(--font);font-size:15px;font-weight:600;
+  cursor:pointer;transition:all .2s;
+}
+.btn-cancel{background:var(--surface2);color:var(--text2)}
+.btn-save{background:var(--accent);color:#fff;box-shadow:0 4px 16px rgba(124,110,240,0.3)}
+.btn-save:active{transform:scale(0.97)}
+.btn-save:disabled{opacity:0.4}
+
+/* ── Empty State ── */
+.empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;color:var(--text2);gap:8px;
+}
+.empty-icon{font-size:40px;opacity:0.3}
+.empty-text{font-size:14px}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── Desktop ── */
+@media(min-width:600px){
+  body{align-items:center;justify-content:center}
+  .app{width:400px;height:min(90vh,820px);display:flex;flex-direction:column;
+    border:1px solid var(--border);border-radius:24px;overflow:hidden;position:relative}
+  .modal{border-radius:24px;max-width:380px}
+  .modal-overlay{align-items:center}
+  .fab{position:absolute}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">WEIGHT <span>TRACKER</span></div>
+    <div style="font-size:11px;color:var(--text2);font-family:var(--mono)" id="today"></div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">目前體重</div>
+      <div class="stat-value" id="currentWeight">--<span class="stat-unit">kg</span></div>
+      <div class="stat-delta neutral" id="deltaWeight">尚無紀錄</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">目標</div>
+      <div class="stat-value" id="goalDisplay">--<span class="stat-unit">kg</span></div>
+      <div class="stat-delta neutral" id="goalDelta">點擊設定</div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-section">
+    <div class="chart-header">
+      <div class="chart-title">體重趨勢</div>
+      <div class="chart-range">
+        <button class="range-btn active" data-range="7">7天</button>
+        <button class="range-btn" data-range="30">30天</button>
+        <button class="range-btn" data-range="0">全部</button>
+      </div>
+    </div>
+    <div class="chart-container">
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+
+  <!-- Records -->
+  <div class="records-section">
+    <div class="records-header">
+      <div class="records-title">紀錄列表</div>
+    </div>
+    <div class="records-list" id="recordsList"></div>
+  </div>
+
+  <!-- FAB -->
+  <button class="fab" id="addBtn" aria-label="新增紀錄">+</button>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle">新增體重紀錄</div>
+    <div class="input-group">
+      <label class="input-label">日期</label>
+      <input type="date" class="input-field" id="inputDate">
+    </div>
+    <div class="input-group">
+      <label class="input-label">體重 (kg)</label>
+      <input type="number" class="input-field" id="inputWeight" placeholder="65.0" step="0.1" min="20" max="300" inputmode="decimal">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-cancel" id="cancelBtn">取消</button>
+      <button class="btn btn-save" id="saveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Data ──
+const STORAGE_KEY = 'wt_records';
+const GOAL_KEY = 'wt_goal';
+let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let goal = parseFloat(localStorage.getItem(GOAL_KEY)) || 0;
+let currentRange = 7;
+
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }
+function saveGoal() { localStorage.setItem(GOAL_KEY, goal); }
+
+// ── DOM ──
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+// Today
+const today = new Date();
+$('#today').textContent = today.toLocaleDateString('zh-TW', { month:'short', day:'numeric', weekday:'short' });
+
+// ── Goal ──
+$('.stat-card:nth-child(2)').addEventListener('click', () => {
+  const v = prompt('設定目標體重 (kg)：', goal || '');
+  if (v && !isNaN(parseFloat(v))) {
+    goal = parseFloat(v);
+    saveGoal();
+    render();
+  }
+});
+
+// ── Modal ──
+function openModal() {
+  $('#inputDate').value = new Date().toISOString().split('T')[0];
+  $('#inputWeight').value = '';
+  $('#modalTitle').textContent = '新增體重紀錄';
+  $('#modalOverlay').classList.add('open');
+  setTimeout(() => $('#inputWeight').focus(), 350);
+}
+function closeModal() { $('#modalOverlay').classList.remove('open'); }
+
+$('#addBtn').addEventListener('click', openModal);
+$('#cancelBtn').addEventListener('click', closeModal);
+$('#modalOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+$('#saveBtn').addEventListener('click', () => {
+  const date = $('#inputDate').value;
+  const weight = parseFloat($('#inputWeight').value);
+  if (!date || isNaN(weight) || weight < 20 || weight > 300) return;
+
+  // Remove existing record for same date
+  records = records.filter(r => r.date !== date);
+  records.push({ date, weight: Math.round(weight * 10) / 10 });
+  records.sort((a, b) => a.date.localeCompare(b.date));
+  save();
+  closeModal();
+  render();
+});
+
+// ── Delete ──
+function deleteRecord(date) {
+  if (confirm('刪除此筆紀錄？')) {
+    records = records.filter(r => r.date !== date);
+    save();
+    render();
+  }
+}
+
+// ── Range Buttons ──
+$$('.range-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('.range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentRange = parseInt(btn.dataset.range);
+    render();
+  });
+});
+
+// ── Chart ──
+const canvas = $('#chart');
+const ctx = canvas.getContext('2d');
+
+function getFilteredRecords() {
+  if (currentRange === 0 || records.length === 0) return [...records];
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - currentRange);
+  const cutoffStr = cutoff.toISOString().split('T')[0];
+  const filtered = records.filter(r => r.date >= cutoffStr);
+  return filtered.length > 0 ? filtered : records.slice(-1);
+}
+
+function drawChart() {
+  const data = getFilteredRecords();
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width;
+  const H = rect.height;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Clear
+  ctx.clearRect(0, 0, W, H);
+
+  if (data.length === 0) {
+    ctx.font = '14px "DM Sans", sans-serif';
+    ctx.fillStyle = '#8886a0';
+    ctx.textAlign = 'center';
+    ctx.fillText('點擊 + 開始記錄', W / 2, H / 2);
+    return;
+  }
+
+  const padL = 48, padR = 16, padT = 16, padB = 36;
+  const cW = W - padL - padR;
+  const cH = H - padT - padB;
+
+  const weights = data.map(d => d.weight);
+  let minW = Math.min(...weights);
+  let maxW = Math.max(...weights);
+  if (goal > 0) {
+    minW = Math.min(minW, goal);
+    maxW = Math.max(maxW, goal);
+  }
+  const range = maxW - minW || 2;
+  minW -= range * 0.15;
+  maxW += range * 0.15;
+
+  const toX = i => padL + (data.length === 1 ? cW / 2 : (i / (data.length - 1)) * cW);
+  const toY = w => padT + (1 - (w - minW) / (maxW - minW)) * cH;
+
+  // Grid lines
+  const gridCount = 4;
+  ctx.strokeStyle = '#1e1e28';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= gridCount; i++) {
+    const y = padT + (i / gridCount) * cH;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    const val = maxW - (i / gridCount) * (maxW - minW);
+    ctx.font = '11px "Space Mono", monospace';
+    ctx.fillStyle = '#8886a0';
+    ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(1), padL - 8, y + 4);
+  }
+
+  // Goal line
+  if (goal > 0 && goal >= minW && goal <= maxW) {
+    const gy = toY(goal);
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#4ade8066';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(W - padR, gy); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = '10px "Space Mono", monospace';
+    ctx.fillStyle = '#4ade80';
+    ctx.textAlign = 'left';
+    ctx.fillText('目標', padL + 4, gy - 6);
+  }
+
+  // X labels
+  const maxLabels = Math.min(data.length, 6);
+  const step = data.length <= maxLabels ? 1 : Math.ceil(data.length / maxLabels);
+  ctx.font = '10px "Space Mono", monospace';
+  ctx.fillStyle = '#8886a0';
+  ctx.textAlign = 'center';
+  data.forEach((d, i) => {
+    if (i % step === 0 || i === data.length - 1) {
+      const parts = d.date.split('-');
+      ctx.fillText(parts[1] + '/' + parts[2], toX(i), H - padB + 20);
+    }
+  });
+
+  if (data.length === 1) {
+    // Single dot
+    const x = toX(0), y = toY(data[0].weight);
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#7c6ef0'; ctx.fill();
+    return;
+  }
+
+  // Area gradient
+  const grad = ctx.createLinearGradient(0, padT, 0, padT + cH);
+  grad.addColorStop(0, 'rgba(124,110,240,0.25)');
+  grad.addColorStop(1, 'rgba(124,110,240,0.0)');
+  ctx.beginPath();
+  ctx.moveTo(toX(0), padT + cH);
+  data.forEach((d, i) => ctx.lineTo(toX(i), toY(d.weight)));
+  ctx.lineTo(toX(data.length - 1), padT + cH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  data.forEach((d, i) => {
+    const x = toX(i), y = toY(d.weight);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#7c6ef0';
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Dots
+  data.forEach((d, i) => {
+    const x = toX(i), y = toY(d.weight);
+    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#7c6ef0'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#e8e6f0'; ctx.fill();
+  });
+}
+
+// ── Records List ──
+function renderRecords() {
+  const list = $('#recordsList');
+  if (records.length === 0) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">⚖️</div><div class="empty-text">尚無紀錄</div></div>';
+    return;
+  }
+  const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+  list.innerHTML = sorted.map((r, i) => {
+    const prev = sorted[i + 1];
+    let deltaHTML = '';
+    if (prev) {
+      const diff = r.weight - prev.weight;
+      const cls = diff < 0 ? 'down' : diff > 0 ? 'up' : 'neutral';
+      const sign = diff > 0 ? '+' : '';
+      deltaHTML = `<span class="stat-delta ${cls}" style="font-size:12px;margin-left:8px">${sign}${diff.toFixed(1)}</span>`;
+    }
+    const d = new Date(r.date + 'T00:00:00');
+    const dateStr = d.toLocaleDateString('zh-TW', { month:'short', day:'numeric', weekday:'short' });
+    return `<div class="record-item">
+      <div class="record-date">${dateStr}</div>
+      <div style="display:flex;align-items:center">
+        <span class="record-weight">${r.weight.toFixed(1)}</span>
+        <span style="font-size:12px;color:var(--text2);margin-left:2px">kg</span>
+        ${deltaHTML}
+        <button class="record-delete" onclick="deleteRecord('${r.date}')">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Stats ──
+function renderStats() {
+  if (records.length === 0) {
+    $('#currentWeight').innerHTML = '--<span class="stat-unit">kg</span>';
+    $('#deltaWeight').textContent = '尚無紀錄';
+    $('#deltaWeight').className = 'stat-delta neutral';
+  } else {
+    const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
+    const latest = sorted[sorted.length - 1];
+    $('#currentWeight').innerHTML = `${latest.weight.toFixed(1)}<span class="stat-unit">kg</span>`;
+    if (sorted.length >= 2) {
+      const prev = sorted[sorted.length - 2];
+      const diff = latest.weight - prev.weight;
+      const sign = diff > 0 ? '+' : '';
+      const cls = diff < 0 ? 'down' : diff > 0 ? 'up' : 'neutral';
+      $('#deltaWeight').textContent = `${sign}${diff.toFixed(1)} kg`;
+      $('#deltaWeight').className = `stat-delta ${cls}`;
+    } else {
+      $('#deltaWeight').textContent = '首筆紀錄';
+      $('#deltaWeight').className = 'stat-delta neutral';
+    }
+  }
+
+  if (goal > 0) {
+    $('#goalDisplay').innerHTML = `${goal.toFixed(1)}<span class="stat-unit">kg</span>`;
+    if (records.length > 0) {
+      const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
+      const diff = sorted[sorted.length - 1].weight - goal;
+      if (diff <= 0) {
+        $('#goalDelta').textContent = '已達標 ✓';
+        $('#goalDelta').className = 'stat-delta down';
+      } else {
+        $('#goalDelta').textContent = `還差 ${diff.toFixed(1)} kg`;
+        $('#goalDelta').className = 'stat-delta neutral';
+      }
+    } else {
+      $('#goalDelta').textContent = '開始記錄吧';
+      $('#goalDelta').className = 'stat-delta neutral';
+    }
+  } else {
+    $('#goalDisplay').innerHTML = '--<span class="stat-unit">kg</span>';
+    $('#goalDelta').textContent = '點擊設定';
+    $('#goalDelta').className = 'stat-delta neutral';
+  }
+}
+
+// ── Render All ──
+function render() {
+  renderStats();
+  renderRecords();
+  drawChart();
+}
+
+render();
+window.addEventListener('resize', () => drawChart());
+
+// ── Service Worker ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
